@@ -10,7 +10,7 @@ import {
   where,
   getDoc
 } from 'firebase/firestore';
-import { Batch, ClassLevel, Subject, ContentItem, ContentType, SubjectData, Student } from '../types';
+import { Batch, ClassLevel, Subject, ContentItem, ContentType, SubjectData, Student, AppSettings } from '../types';
 
 //Helper to remove undefined fields which cause Firestore to crash
 const cleanData = <T extends object>(data: T): T => {
@@ -87,6 +87,10 @@ const seedData = async () => {
     for (const s of INITIAL_SUBJECTS) await setDoc(doc(db, 'subjects', s.id), cleanData(s));
     for (const c of INITIAL_CONTENT) await setDoc(doc(db, 'content', c.id), cleanData(c));
     for (const st of INITIAL_STUDENTS) await setDoc(doc(db, 'students', st.id), cleanData(st));
+    
+    // Seed settings
+    await setDoc(doc(db, 'settings', 'global'), { maintenanceMode: false, allowEnrollments: true });
+    
     console.log("Database Seeded!");
   }
 };
@@ -148,6 +152,15 @@ export const fetchAllContentFlat = async (): Promise<ContentItem[]> => {
 export const fetchStudents = async (): Promise<Student[]> => {
   const snapshot = await getDocs(collection(db, 'students'));
   return snapshot.docs.map(doc => doc.data() as Student);
+};
+
+export const fetchSettings = async (): Promise<AppSettings> => {
+  const ref = doc(db, 'settings', 'global');
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    return snap.data() as AppSettings;
+  }
+  return { maintenanceMode: false, allowEnrollments: true };
 };
 
 // --- CRUD Actions ---
@@ -213,4 +226,8 @@ export const deleteContent = async (type: 'lectures' | 'notes' | 'dpps', id: str
 
 export const updateStudentStatus = async (id: string, status: 'Active' | 'Suspended') => {
   await updateDoc(doc(db, 'students', id), { status });
+};
+
+export const updateSettings = async (settings: AppSettings) => {
+  await setDoc(doc(db, 'settings', 'global'), cleanData(settings));
 };

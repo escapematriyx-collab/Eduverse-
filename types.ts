@@ -63,3 +63,8 @@ export interface Student {
   progress: number;
   status: 'Active' | 'Suspended';
 }
+
+export interface AppSettings {
+  maintenanceMode: boolean;
+  allowEnrollments: boolean;
+}

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchBatches } from '../services/data';
+import { fetchBatches, fetchSettings } from '../services/data';
 import { ClassLevel, Batch } from '../types';
-import { CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, ArrowRight, Loader2, Lock } from 'lucide-react';
 
 export const Home: React.FC = () => {
   const [selectedLevel, setSelectedLevel] = useState<ClassLevel>(ClassLevel.All);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canEnroll, setCanEnroll] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -15,8 +16,10 @@ export const Home: React.FC = () => {
         try {
             const data = await fetchBatches();
             setBatches(data);
+            const settings = await fetchSettings();
+            setCanEnroll(settings.allowEnrollments);
         } catch (error) {
-            console.error("Failed to load batches", error);
+            console.error("Failed to load data", error);
         } finally {
             setLoading(false);
         }
@@ -69,7 +72,12 @@ export const Home: React.FC = () => {
       {/* Batches Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredBatches.map((batch) => (
-          <BatchCard key={batch.id} batch={batch} onSelect={() => navigate(`/batch/${batch.id}`)} />
+          <BatchCard 
+            key={batch.id} 
+            batch={batch} 
+            onSelect={() => navigate(`/batch/${batch.id}`)} 
+            enabled={canEnroll}
+          />
         ))}
         {filteredBatches.length === 0 && (
             <div className="col-span-full text-center py-10 text-slate-400">
@@ -77,11 +85,17 @@ export const Home: React.FC = () => {
             </div>
         )}
       </div>
+      
+      {!canEnroll && (
+          <div className="text-center bg-amber-50 p-4 rounded-lg border border-amber-200 text-amber-800 text-sm max-w-2xl mx-auto">
+              <Lock className="w-4 h-4 inline mr-2"/> New enrollments are currently closed by the administrator.
+          </div>
+      )}
     </div>
   );
 };
 
-const BatchCard: React.FC<{ batch: Batch; onSelect: () => void }> = ({ batch, onSelect }) => {
+const BatchCard: React.FC<{ batch: Batch; onSelect: () => void; enabled: boolean }> = ({ batch, onSelect, enabled }) => {
   const bannerStyle = batch.bannerImage 
     ? { backgroundImage: `url(${batch.bannerImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : {};
@@ -133,10 +147,15 @@ const BatchCard: React.FC<{ batch: Batch; onSelect: () => void }> = ({ batch, on
 
         <button 
           onClick={onSelect}
-          className="w-full py-3 bg-slate-900 text-white font-semibold rounded-xl hover:bg-blue-600 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-blue-500/20"
+          disabled={!enabled}
+          className={`w-full py-3 font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
+             enabled 
+             ? 'bg-slate-900 text-white hover:bg-blue-600 active:scale-[0.98] group-hover:shadow-lg group-hover:shadow-blue-500/20'
+             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          }`}
         >
-          Enroll Now
-          <ArrowRight className="w-4 h-4" />
+          {enabled ? 'Enroll Now' : 'Enrollment Closed'}
+          {enabled && <ArrowRight className="w-4 h-4" />}
         </button>
       </div>
     </div>
