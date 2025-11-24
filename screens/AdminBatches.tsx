@@ -59,6 +59,13 @@ export const AdminBatches: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Check file size (700KB limit for Firestore reliability)
+      if (file.size > 700 * 1024) {
+          alert("File size too large. Please upload an image smaller than 700KB.");
+          return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData({ ...formData, bannerImage: reader.result as string });
@@ -98,7 +105,7 @@ export const AdminBatches: React.FC = () => {
         refresh();
     } catch (err) {
         console.error("Error saving batch", err);
-        alert("Failed to save batch.");
+        alert("Failed to save batch. Error: " + (err as any).message);
     } finally {
         setSubmitting(false);
     }
@@ -179,7 +186,6 @@ export const AdminBatches: React.FC = () => {
                       <button onClick={() => setShowModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
                   </div>
                   <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                      {/* Form fields same as before... */}
                       <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">Batch Name</label>
                           <input required className="w-full border rounded-lg px-3 py-2" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />

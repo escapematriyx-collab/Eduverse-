@@ -12,6 +12,17 @@ import {
 } from 'firebase/firestore';
 import { Batch, ClassLevel, Subject, ContentItem, ContentType, SubjectData, Student } from '../types';
 
+//Helper to remove undefined fields which cause Firestore to crash
+const cleanData = <T extends object>(data: T): T => {
+  const clean = { ...data };
+  Object.keys(clean).forEach((key) => {
+    if ((clean as any)[key] === undefined) {
+      delete (clean as any)[key];
+    }
+  });
+  return clean;
+};
+
 // --- Initial Seed Data (Used if DB is empty) ---
 const INITIAL_BATCHES: Batch[] = [
   {
@@ -72,10 +83,10 @@ const seedData = async () => {
   const batchSnap = await getDocs(collection(db, 'batches'));
   if (batchSnap.empty) {
     console.log("Seeding Database...");
-    for (const b of INITIAL_BATCHES) await setDoc(doc(db, 'batches', b.id), b);
-    for (const s of INITIAL_SUBJECTS) await setDoc(doc(db, 'subjects', s.id), s);
-    for (const c of INITIAL_CONTENT) await setDoc(doc(db, 'content', c.id), c);
-    for (const st of INITIAL_STUDENTS) await setDoc(doc(db, 'students', st.id), st);
+    for (const b of INITIAL_BATCHES) await setDoc(doc(db, 'batches', b.id), cleanData(b));
+    for (const s of INITIAL_SUBJECTS) await setDoc(doc(db, 'subjects', s.id), cleanData(s));
+    for (const c of INITIAL_CONTENT) await setDoc(doc(db, 'content', c.id), cleanData(c));
+    for (const st of INITIAL_STUDENTS) await setDoc(doc(db, 'students', st.id), cleanData(st));
     console.log("Database Seeded!");
   }
 };
@@ -96,9 +107,6 @@ export const fetchBatchById = async (id: string): Promise<Batch | undefined> => 
 
 export const fetchSubjects = async (batchId?: string): Promise<Subject[]> => {
   let q = collection(db, 'subjects');
-  // Firestore filtering requires an index if complex, but simple filtering is fine.
-  // Note: Client-side filtering might be easier for small datasets if indexes aren't set up.
-  // However, simple equality 'where' clauses usually work out of the box.
   if (batchId) {
     const qFiltered = query(collection(db, 'subjects'), where('batchId', '==', batchId));
     const snapshot = await getDocs(qFiltered);
@@ -115,7 +123,6 @@ export const fetchSubjectById = async (id: string): Promise<Subject | undefined>
 };
 
 export const fetchContent = async (subjectId?: string): Promise<SubjectData> => {
-  // Fetch all content or filtered
   let snapshot;
   if (subjectId) {
       const q = query(collection(db, 'content'), where('subjectId', '==', subjectId));
@@ -146,26 +153,23 @@ export const fetchStudents = async (): Promise<Student[]> => {
 // --- CRUD Actions ---
 
 export const addBatch = async (batch: Batch) => {
-  await setDoc(doc(db, 'batches', batch.id), batch);
+  await setDoc(doc(db, 'batches', batch.id), cleanData(batch));
 };
 
 export const updateBatch = async (id: string, updates: Partial<Batch>) => {
-  await updateDoc(doc(db, 'batches', id), updates);
+  await updateDoc(doc(db, 'batches', id), cleanData(updates));
 };
 
 export const deleteBatch = async (id: string) => {
   await deleteDoc(doc(db, 'batches', id));
-  // Note: Firestore doesn't cascade delete automatically. 
-  // In a real app, you'd use a cloud function or batch write to delete related subjects.
-  // For now, we'll leave orphans or handle them on fetch.
 };
 
 export const addSubject = async (subject: Subject) => {
-  await setDoc(doc(db, 'subjects', subject.id), subject);
+  await setDoc(doc(db, 'subjects', subject.id), cleanData(subject));
 };
 
 export const updateSubject = async (id: string, updates: Partial<Subject>) => {
-  await updateDoc(doc(db, 'subjects', id), updates);
+  await updateDoc(doc(db, 'subjects', id), cleanData(updates));
 };
 
 export const deleteSubject = async (id: string) => {
@@ -173,7 +177,7 @@ export const deleteSubject = async (id: string) => {
 };
 
 export const addContent = async (type: 'lectures' | 'notes' | 'dpps', item: ContentItem) => {
-  await setDoc(doc(db, 'content', item.id), item);
+  await setDoc(doc(db, 'content', item.id), cleanData(item));
   
   // Update Topic Count
   if (item.subjectId) {
@@ -187,11 +191,10 @@ export const addContent = async (type: 'lectures' | 'notes' | 'dpps', item: Cont
 };
 
 export const updateContent = async (type: 'lectures' | 'notes' | 'dpps', id: string, updates: Partial<ContentItem>) => {
-  await updateDoc(doc(db, 'content', id), updates);
+  await updateDoc(doc(db, 'content', id), cleanData(updates));
 };
 
 export const deleteContent = async (type: 'lectures' | 'notes' | 'dpps', id: string) => {
-    // Get item first to know subject ID for count decrement
     const ref = doc(db, 'content', id);
     const snap = await getDoc(ref);
     if (snap.exists()) {

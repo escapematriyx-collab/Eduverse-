@@ -84,6 +84,13 @@ export const AdminContent: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Check file size (700KB limit for Firestore reliability)
+      if (file.size > 700 * 1024) {
+          alert("File size too large. Please upload a PDF smaller than 700KB or use an external link.");
+          return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData({ ...formData, url: reader.result as string });
@@ -121,7 +128,7 @@ export const AdminContent: React.FC = () => {
         setItems(content[activeTab]);
       } catch (err) {
           console.error(err);
-          alert("Failed to save content");
+          alert("Failed to save content. Error: " + (err as any).message);
       } finally {
           setSubmitting(false);
       }
