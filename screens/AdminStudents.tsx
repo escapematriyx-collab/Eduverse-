@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { getStudents, updateStudentStatus } from '../services/data';
+import { fetchStudents, updateStudentStatus } from '../services/data';
 import { Student } from '../types';
-import { Search, MoreVertical } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 
 export const AdminStudents: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [filter, setFilter] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const refresh = () => setStudents(getStudents());
-  useEffect(() => refresh(), []);
+  const refresh = async () => {
+    const data = await fetchStudents();
+    setStudents(data);
+    setLoading(false);
+  };
+  useEffect(() => { refresh(); }, []);
 
-  const toggleStatus = (id: string, current: string) => {
+  const toggleStatus = async (id: string, current: string) => {
       const newStatus = current === 'Active' ? 'Suspended' : 'Active';
-      updateStudentStatus(id, newStatus as any);
+      await updateStudentStatus(id, newStatus as any);
       refresh();
   };
 
@@ -20,6 +25,8 @@ export const AdminStudents: React.FC = () => {
     s.name.toLowerCase().includes(filter.toLowerCase()) || 
     s.email.toLowerCase().includes(filter.toLowerCase())
   );
+
+  if (loading) return <div className="flex justify-center p-10"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
 
   return (
     <div className="space-y-6 animate-fade-in">

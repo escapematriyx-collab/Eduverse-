@@ -1,20 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getBatchById, getSubjects } from '../services/data';
+import { fetchBatchById, fetchSubjects } from '../services/data';
 import * as LucideIcons from 'lucide-react';
-import { Subject } from '../types';
+import { Subject, Batch } from '../types';
+import { Loader2 } from 'lucide-react';
 
 export const BatchDashboard: React.FC = () => {
   const { batchId } = useParams();
   const navigate = useNavigate();
-  const batch = getBatchById(batchId || '');
+  const [batch, setBatch] = useState<Batch | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (batchId) {
-        setSubjects(getSubjects(batchId));
-    }
+    const load = async () => {
+        if (batchId) {
+            const b = await fetchBatchById(batchId);
+            if (b) setBatch(b);
+            const s = await fetchSubjects(batchId);
+            setSubjects(s);
+            setLoading(false);
+        }
+    };
+    load();
   }, [batchId]);
+
+  if (loading) {
+     return <div className="flex justify-center items-center min-h-[50vh]"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
+  }
 
   if (!batch) {
     return <div className="text-center py-20 text-slate-500">Batch not found. Please return home.</div>;
@@ -54,7 +67,6 @@ export const BatchDashboard: React.FC = () => {
 };
 
 const SubjectCard: React.FC<{ subject: Subject; onClick: () => void }> = ({ subject, onClick }) => {
-  // Dynamic icon rendering
   const IconComponent = (LucideIcons as any)[subject.iconName] || LucideIcons.Book;
 
   return (
@@ -76,7 +88,6 @@ const SubjectCard: React.FC<{ subject: Subject; onClick: () => void }> = ({ subj
         <p className={`text-xs ${subject.textColor} opacity-80`}>View Content &rarr;</p>
       </div>
       
-      {/* Decorative Circle */}
       <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/20 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
     </button>
   );

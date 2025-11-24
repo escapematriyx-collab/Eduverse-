@@ -1,22 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getBatches } from '../services/data';
+import { fetchBatches } from '../services/data';
 import { ClassLevel, Batch } from '../types';
-import { CheckCircle2, ArrowRight } from 'lucide-react';
+import { CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
 
 export const Home: React.FC = () => {
   const [selectedLevel, setSelectedLevel] = useState<ClassLevel>(ClassLevel.All);
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Refresh data on mount
-    setBatches(getBatches());
+    const load = async () => {
+        try {
+            const data = await fetchBatches();
+            setBatches(data);
+        } catch (error) {
+            console.error("Failed to load batches", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+    load();
   }, []);
 
   const filteredBatches = selectedLevel === ClassLevel.All
     ? batches
     : batches.filter(b => b.classLevel === selectedLevel);
+
+  if (loading) {
+      return <div className="flex justify-center items-center min-h-[50vh]"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -67,9 +81,7 @@ export const Home: React.FC = () => {
   );
 };
 
-// Internal component for batch card to keep file clean
 const BatchCard: React.FC<{ batch: Batch; onSelect: () => void }> = ({ batch, onSelect }) => {
-  // Determine banner style
   const bannerStyle = batch.bannerImage 
     ? { backgroundImage: `url(${batch.bannerImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : {};
@@ -78,18 +90,14 @@ const BatchCard: React.FC<{ batch: Batch; onSelect: () => void }> = ({ batch, on
 
   return (
     <div className="group bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col h-full">
-      {/* Banner */}
       <div className={`h-40 ${gradientClass} p-4 relative`} style={bannerStyle}>
         <div className="absolute inset-0 bg-black/30 transition-opacity group-hover:bg-black/40"></div>
-        
         <div className="relative z-10 h-full flex flex-col justify-between">
             <span className="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-2 py-1 rounded inline-block w-fit border border-white/10">
                 {batch.classLevel}
             </span>
             <h3 className="text-white font-bold text-xl drop-shadow-md">{batch.name}</h3>
         </div>
-
-        {/* Floating Teachers */}
         <div className="absolute -bottom-6 right-4 flex -space-x-3">
           {batch.teachers.map((img, idx) => (
             <img 
@@ -102,11 +110,9 @@ const BatchCard: React.FC<{ batch: Batch; onSelect: () => void }> = ({ batch, on
         </div>
       </div>
 
-      {/* Content */}
       <div className="p-5 pt-8 flex-1 flex flex-col">
         <div className="flex-1">
           <p className="text-slate-500 text-sm mb-4 line-clamp-2">{batch.description}</p>
-          
           <div className="flex items-baseline gap-2 mb-6">
             <span className="text-2xl font-bold text-slate-900">
                 {batch.discountPrice === 0 ? 'FREE' : `₹${batch.discountPrice}`}

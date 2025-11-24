@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { getContent, addContent, deleteContent, updateContent, getSubjects, getBatches } from '../services/data';
+import { fetchContent, addContent, deleteContent, updateContent, fetchSubjects, fetchBatches } from '../services/data';
 import { ContentType, ContentItem, Batch, Subject } from '../types';
-import { Plus, Trash2, PlayCircle, FileText, PenTool, Edit2, X, Link as LinkIcon, UploadCloud } from 'lucide-react';
+import { Plus, Trash2, PlayCircle, FileText, PenTool, Edit2, X, Link as LinkIcon, UploadCloud, Loader2 } from 'lucide-react';
 
 export const AdminContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'lectures' | 'notes' | 'dpps'>('lectures');
   const [items, setItems] = useState<ContentItem[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   
-  // Modal State
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<string>(''); 
   const [filteredSubjects, setFilteredSubjects] = useState<Subject[]>([]); 
-  
-  // Source Mode: 'link' or 'file'
   const [sourceMode, setSourceMode] = useState<'link' | 'file'>('link');
 
   const [formData, setFormData] = useState<Partial<ContentItem>>({
@@ -26,10 +25,15 @@ export const AdminContent: React.FC = () => {
     url: ''
   });
 
-  const refresh = () => {
-    setItems(getContent()[activeTab]);
-    setBatches(getBatches());
-    setSubjects(getSubjects());
+  const refresh = async () => {
+    setLoading(true);
+    const content = await fetchContent();
+    setItems(content[activeTab]);
+    const b = await fetchBatches();
+    setBatches(b);
+    const s = await fetchSubjects();
+    setSubjects(s);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -39,19 +43,15 @@ export const AdminContent: React.FC = () => {
   useEffect(() => {
     if (selectedBatch) {
         setFilteredSubjects(subjects.filter(s => s.batchId === selectedBatch));
-        const currentSubject = subjects.find(s => s.id === formData.subjectId);
-        if (currentSubject && currentSubject.batchId !== selectedBatch) {
-            setFormData(prev => ({ ...prev, subjectId: '' }));
-        }
     } else {
         setFilteredSubjects([]);
     }
   }, [selectedBatch, subjects]); 
 
-  const handleEdit = (item: ContentItem) => {
+  const handleEdit = (e: React.MouseEvent, item: ContentItem) => {
+    e.stopPropagation();
     setFormData(item);
     
-    // Determine source mode based on URL content
     const isDataUrl = item.url?.startsWith('data:');
     setSourceMode(isDataUrl ? 'file' : 'link');
     
@@ -64,10 +64,12 @@ export const AdminContent: React.FC = () => {
     setShowModal(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     if (window.confirm('Delete this item permanently?')) {
-        deleteContent(activeTab, id);
-        refresh();
+        await deleteContent(activeTab, id);
+        const content = await fetchContent(); // partial refresh
+        setItems(content[activeTab]);
     }
   };
 
@@ -82,12 +84,6 @@ export const AdminContent: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      
-      // Size check (warn if > 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-          alert("Warning: This file is large (>2MB). It may consume your browser storage quickly.");
-      }
-
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData({ ...formData, url: reader.result as string });
@@ -96,39 +92,39 @@ export const AdminContent: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!formData.subjectId) {
-          alert("Please select a subject");
-          return;
-      }
-      if (!formData.url) {
-          alert("Please provide a link or upload a file");
-          return;
-      }
+      setSubmitting(true);
 
       const typeMap = { 'lectures': ContentType.Lecture, 'notes': ContentType.Note, 'dpps': ContentType.DPP };
       
-      if (isEditing && formData.id) {
-          updateContent(activeTab, formData.id, {
-              ...formData,
-              type: typeMap[activeTab]
-          });
-      } else {
-          addContent(activeTab, {
-              id: `${activeTab[0]}-${Date.now()}`,
-              type: typeMap[activeTab],
-              title: formData.title!,
-              subjectId: formData.subjectId,
-              duration: formData.duration,
-              tag: formData.tag || 'NEW',
-              date: new Date().toLocaleDateString(),
-              url: formData.url
-          });
+      try {
+        if (isEditing && formData.id) {
+            await updateContent(activeTab, formData.id, {
+                ...formData,
+                type: typeMap[activeTab]
+            });
+        } else {
+            await addContent(activeTab, {
+                id: `${activeTab[0]}-${Date.now()}`,
+                type: typeMap[activeTab],
+                title: formData.title!,
+                subjectId: formData.subjectId,
+                duration: formData.duration,
+                tag: formData.tag || 'NEW',
+                date: new Date().toLocaleDateString(),
+                url: formData.url
+            });
+        }
+        setShowModal(false);
+        const content = await fetchContent(); // partial refresh
+        setItems(content[activeTab]);
+      } catch (err) {
+          console.error(err);
+          alert("Failed to save content");
+      } finally {
+          setSubmitting(false);
       }
-
-      setShowModal(false);
-      refresh();
   };
 
   const getSubjectName = (id: string) => subjects.find(s => s.id === id)?.name || 'Unknown Subject';
@@ -139,11 +135,14 @@ export const AdminContent: React.FC = () => {
       return batch ? batch.name : '';
   };
 
+  if (loading) return <div className="flex justify-center p-10"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-900 capitalize">Manage {activeTab}</h1>
         <button 
+            type="button"
             onClick={handleCreateNew} 
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 transition-colors"
         >
@@ -151,7 +150,6 @@ export const AdminContent: React.FC = () => {
         </button>
       </div>
 
-      {/* Tabs */}
       <div className="flex space-x-1 bg-gray-100 p-1 rounded-xl w-fit">
           {['lectures', 'notes', 'dpps'].map((tab: any) => (
               <button
@@ -205,8 +203,8 @@ export const AdminContent: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-right">
                              <div className="flex items-center justify-end gap-2">
-                                <button onClick={() => handleEdit(item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"><Edit2 className="w-4 h-4"/></button>
-                                <button onClick={() => handleDelete(item.id)} className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 className="w-4 h-4"/></button>
+                                <button type="button" onClick={(e) => handleEdit(e, item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"><Edit2 className="w-4 h-4"/></button>
+                                <button type="button" onClick={(e) => handleDelete(e, item.id)} className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 className="w-4 h-4"/></button>
                              </div>
                         </td>
                     </tr>
@@ -227,7 +225,6 @@ export const AdminContent: React.FC = () => {
                   </div>
                   
                   <form onSubmit={handleSubmit} className="space-y-4">
-                      {/* Step 1: Select Batch */}
                       <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">Select Batch</label>
                           <select 
@@ -241,7 +238,6 @@ export const AdminContent: React.FC = () => {
                           </select>
                       </div>
 
-                      {/* Step 2: Select Subject (Filtered) */}
                       <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">Select Subject</label>
                           <select 
@@ -263,7 +259,6 @@ export const AdminContent: React.FC = () => {
                         <input required placeholder="e.g. Introduction to Algebra" className="w-full border rounded-lg px-3 py-2" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
                       </div>
 
-                      {/* Source Selection (Link vs File) */}
                       <div>
                           <label className="block text-sm font-medium text-slate-700 mb-2">Content Source</label>
                           <div className="flex bg-gray-100 p-1 rounded-lg w-fit mb-3">
@@ -274,7 +269,6 @@ export const AdminContent: React.FC = () => {
                               >
                                   <div className="flex items-center gap-2"><LinkIcon className="w-3 h-3"/> External Link</div>
                               </button>
-                              {/* Only show file upload for Notes/DPPs, usually videos are too big for localStorage */}
                               {(activeTab === 'notes' || activeTab === 'dpps') && (
                                   <button 
                                       type="button"
@@ -324,8 +318,8 @@ export const AdminContent: React.FC = () => {
                       
                       <div className="flex gap-2 pt-2">
                           <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2 border rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
-                          <button type="submit" className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                            {isEditing ? 'Save Changes' : 'Upload'}
+                          <button disabled={submitting} type="submit" className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300">
+                            {submitting ? 'Saving...' : (isEditing ? 'Save Changes' : 'Upload')}
                           </button>
                       </div>
                   </form>

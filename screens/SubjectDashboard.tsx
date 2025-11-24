@@ -1,35 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getBatchById, getSubjectById, getContent } from '../services/data';
-import { ContentType, ContentItem } from '../types';
-import { PlayCircle, FileText, PenTool, Clock, ChevronRight, Download, ExternalLink } from 'lucide-react';
+import { fetchBatchById, fetchSubjectById, fetchContent } from '../services/data';
+import { ContentType, ContentItem, SubjectData, Batch, Subject } from '../types';
+import { PlayCircle, FileText, PenTool, Clock, ChevronRight, Download, ExternalLink, Loader2 } from 'lucide-react';
 
 export const SubjectDashboard: React.FC = () => {
   const { batchId, subjectId } = useParams();
   const [activeTab, setActiveTab] = useState<ContentType>(ContentType.Lecture);
-  const [data, setData] = useState(getContent());
-
-  const batch = getBatchById(batchId || '');
-  const subject = getSubjectById(subjectId || '');
+  const [data, setData] = useState<SubjectData>({ lectures: [], notes: [], dpps: [] });
+  const [batch, setBatch] = useState<Batch | null>(null);
+  const [subject, setSubject] = useState<Subject | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-     setData(getContent());
-  }, []);
+    const load = async () => {
+        if (batchId && subjectId) {
+             const b = await fetchBatchById(batchId);
+             const s = await fetchSubjectById(subjectId);
+             if (b) setBatch(b);
+             if (s) setSubject(s);
+             const content = await fetchContent(subjectId);
+             setData(content);
+             setLoading(false);
+        }
+    };
+    load();
+  }, [batchId, subjectId]);
 
+  if (loading) return <div className="flex justify-center items-center min-h-[50vh]"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
   if (!batch || !subject) return <div>Subject not found</div>;
 
-  // Filter content based on active tab AND subjectId
-  const allContentList = activeTab === ContentType.Lecture ? data.lectures :
+  const contentList = activeTab === ContentType.Lecture ? data.lectures :
                       activeTab === ContentType.Note ? data.notes :
                       data.dpps;
-
-  // Filter by subject if the item has subjectId
-  const contentList = allContentList.filter(item => !item.subjectId || item.subjectId === subject.id);
 
   return (
     <div className="space-y-6 animate-fade-in">
       
-      {/* Breadcrumb & Header */}
       <div className="flex flex-col gap-2">
         <nav className="text-sm text-slate-500 flex items-center gap-2">
           <Link to={`/batch/${batchId}`} className="hover:text-blue-600 transition-colors">
@@ -46,7 +53,6 @@ export const SubjectDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="border-b border-gray-200">
         <div className="flex gap-6 overflow-x-auto no-scrollbar">
           {[ContentType.Lecture, ContentType.Note, ContentType.DPP].map((type) => (
@@ -68,7 +74,6 @@ export const SubjectDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Content List */}
       <div className="space-y-4">
         {contentList.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
@@ -84,12 +89,11 @@ export const SubjectDashboard: React.FC = () => {
   );
 };
 
-const ContentListItem: React.FC<{ item: ContentItem; color: string }> = ({ item, color }) => {
+const ContentListItem: React.FC<{ item: ContentItem; color: string }> = ({ item }) => {
   const isFile = item.url?.startsWith('data:');
 
   const handleClick = () => {
     if (item.url) {
-      // If it's a data URI (file), we create a temporary link to download it or open in new tab
       if (isFile) {
           const win = window.open();
           if (win) {
@@ -110,7 +114,6 @@ const ContentListItem: React.FC<{ item: ContentItem; color: string }> = ({ item,
       onClick={handleClick}
       className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-4 group cursor-pointer"
     >
-      {/* Icon Box */}
       <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
         item.type === ContentType.Lecture ? 'bg-red-50 text-red-600' :
         item.type === ContentType.Note ? 'bg-blue-50 text-blue-600' :
@@ -121,7 +124,6 @@ const ContentListItem: React.FC<{ item: ContentItem; color: string }> = ({ item,
         {item.type === ContentType.DPP && <PenTool className="w-6 h-6" />}
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-bold tracking-wider text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded uppercase">
@@ -143,7 +145,6 @@ const ContentListItem: React.FC<{ item: ContentItem; color: string }> = ({ item,
         </h4>
       </div>
 
-      {/* Action */}
       <div className="shrink-0">
          <button className="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-gray-50 rounded-full group-hover:bg-blue-50">
              {item.type === ContentType.Lecture ? <PlayCircle className="w-5 h-5" /> : isFile ? <Download className="w-5 h-5" /> : <ExternalLink className="w-5 h-5" />}

@@ -1,20 +1,40 @@
-import React from 'react';
-import { getBatches, getStudents, getContent, getSubjects } from '../services/data';
-import { Users, Layers, Video, FileText, ArrowUpRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { fetchBatches, fetchStudents, fetchAllContentFlat, fetchSubjects } from '../services/data';
+import { Users, Layers, Video, FileText, ArrowUpRight, Loader2 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
-  const stats = {
-    students: getStudents().length,
-    batches: getBatches().length,
-    lectures: getContent().lectures.length,
-    subjects: getSubjects().length,
-  };
+  const [stats, setStats] = useState({
+      students: 0,
+      batches: 0,
+      lectures: 0,
+      subjects: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+      const load = async () => {
+          const s = await fetchStudents();
+          const b = await fetchBatches();
+          const sub = await fetchSubjects();
+          const c = await fetchAllContentFlat();
+          
+          setStats({
+              students: s.length,
+              batches: b.length,
+              subjects: sub.length,
+              lectures: c.filter(i => i.type === 'Lecture').length
+          });
+          setLoading(false);
+      };
+      load();
+  }, []);
+
+  if (loading) return <div className="flex justify-center p-10"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
 
   return (
     <div className="space-y-6 animate-fade-in">
       <h1 className="text-2xl font-bold text-slate-900">Dashboard Overview</h1>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="Total Students" value={stats.students} icon={Users} color="bg-blue-500" />
         <StatCard title="Active Batches" value={stats.batches} icon={Layers} color="bg-purple-500" />
@@ -22,9 +42,7 @@ export const AdminDashboard: React.FC = () => {
         <StatCard title="Subjects Created" value={stats.subjects} icon={FileText} color="bg-green-500" />
       </div>
 
-      {/* Graphs Area */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Enrollment Chart Mock */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="flex justify-between items-center mb-6">
                 <h3 className="font-semibold text-slate-800">Student Enrollments</h3>
@@ -37,9 +55,6 @@ export const AdminDashboard: React.FC = () => {
                             className="absolute bottom-0 w-full bg-blue-500 rounded-t-lg transition-all duration-500 hover:bg-blue-600"
                             style={{ height: `${h}%` }}
                         ></div>
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                            {h * 10} Students
-                        </div>
                     </div>
                 ))}
             </div>
@@ -48,11 +63,9 @@ export const AdminDashboard: React.FC = () => {
             </div>
         </div>
 
-        {/* Engagement Pie Chart Mock */}
         <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <h3 className="font-semibold text-slate-800 mb-6">Content Distribution</h3>
             <div className="flex items-center justify-center h-64">
-                {/* CSS Pie Chart */}
                 <div className="w-48 h-48 rounded-full border-[16px] border-blue-500 relative flex items-center justify-center shadow-inner" style={{ borderRightColor: '#a855f7', borderBottomColor: '#f97316', transform: 'rotate(45deg)' }}>
                     <div className="text-center" style={{ transform: 'rotate(-45deg)' }}>
                         <span className="block text-3xl font-bold text-slate-800">85%</span>
@@ -66,27 +79,6 @@ export const AdminDashboard: React.FC = () => {
                 <div className="flex items-center gap-2 text-sm text-slate-600"><div className="w-3 h-3 bg-orange-500 rounded-full"></div> DPPs</div>
             </div>
         </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-          <h3 className="font-semibold text-slate-800 mb-4">Recent Activities</h3>
-          <div className="space-y-4">
-              {[1, 2, 3].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-50 last:border-0">
-                      <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                             <ArrowUpRight className="w-5 h-5" />
-                          </div>
-                          <div>
-                              <p className="text-sm font-medium text-slate-900">New Student Enrolled in Class 10</p>
-                              <p className="text-xs text-slate-500">2 hours ago</p>
-                          </div>
-                      </div>
-                      <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded">Completed</span>
-                  </div>
-              ))}
-          </div>
       </div>
     </div>
   );

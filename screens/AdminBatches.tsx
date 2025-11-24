@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { getBatches, addBatch, updateBatch, deleteBatch } from '../services/data';
+import { fetchBatches, addBatch, updateBatch, deleteBatch } from '../services/data';
 import { Batch, ClassLevel } from '../types';
-import { Plus, Trash2, Edit2, X, Image as ImageIcon, Palette } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Image as ImageIcon, Palette, Loader2 } from 'lucide-react';
 
 export const AdminBatches: React.FC = () => {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   
-  // Banner Mode: 'gradient' or 'image'
   const [bannerMode, setBannerMode] = useState<'gradient' | 'image'>('gradient');
   
   const initialFormState: Partial<Batch> = {
@@ -25,17 +26,23 @@ export const AdminBatches: React.FC = () => {
 
   const [formData, setFormData] = useState<Partial<Batch>>(initialFormState);
 
-  const refresh = () => setBatches(getBatches());
-  useEffect(() => refresh(), []);
+  const refresh = async () => {
+      const data = await fetchBatches();
+      setBatches(data);
+      setLoading(false);
+  };
+  useEffect(() => { refresh(); }, []);
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this batch? All subjects and content within it will be hidden.')) {
-        deleteBatch(id);
+        await deleteBatch(id);
         refresh();
     }
   };
 
-  const handleEdit = (batch: Batch) => {
+  const handleEdit = (e: React.MouseEvent, batch: Batch) => {
+      e.stopPropagation();
       setFormData(batch);
       setBannerMode(batch.bannerImage ? 'image' : 'gradient');
       setIsEditing(true);
@@ -60,35 +67,41 @@ export const AdminBatches: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
     
-    // Clean up data based on mode
     const finalData = {
         ...formData,
         bannerImage: bannerMode === 'image' ? formData.bannerImage : undefined,
     };
 
-    if (isEditing && formData.id) {
-        updateBatch(formData.id, finalData);
-    } else {
-        addBatch({
-            id: `b-${Date.now()}`,
-            name: formData.name!,
-            classLevel: formData.classLevel as ClassLevel,
-            originalPrice: Number(formData.originalPrice),
-            discountPrice: Number(formData.discountPrice),
-            description: formData.description!,
-            teachers: formData.teachers!,
-            gradient: formData.gradient!,
-            bannerImage: bannerMode === 'image' ? formData.bannerImage : undefined,
-            status: 'Active',
-            studentCount: 0
-        });
+    try {
+        if (isEditing && formData.id) {
+            await updateBatch(formData.id, finalData);
+        } else {
+            await addBatch({
+                id: `b-${Date.now()}`,
+                name: formData.name!,
+                classLevel: formData.classLevel as ClassLevel,
+                originalPrice: Number(formData.originalPrice),
+                discountPrice: Number(formData.discountPrice),
+                description: formData.description!,
+                teachers: formData.teachers!,
+                gradient: formData.gradient!,
+                bannerImage: bannerMode === 'image' ? formData.bannerImage : undefined,
+                status: 'Active',
+                studentCount: 0
+            });
+        }
+        setShowModal(false);
+        refresh();
+    } catch (err) {
+        console.error("Error saving batch", err);
+        alert("Failed to save batch.");
+    } finally {
+        setSubmitting(false);
     }
-    
-    setShowModal(false);
-    refresh();
   };
 
   const gradients = [
@@ -99,11 +112,14 @@ export const AdminBatches: React.FC = () => {
       { name: 'Midnight', value: 'from-slate-700 to-slate-900' },
   ];
 
+  if (loading) return <div className="flex justify-center p-10"><Loader2 className="w-8 h-8 animate-spin text-blue-600" /></div>;
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-900">Manage Batches</h1>
         <button 
+            type="button"
             onClick={handleCreateNew}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
@@ -142,8 +158,8 @@ export const AdminBatches: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                  <button onClick={() => handleEdit(batch)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4"/></button>
-                                  <button onClick={() => handleDelete(batch.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4"/></button>
+                                  <button type="button" onClick={(e) => handleEdit(e, batch)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4"/></button>
+                                  <button type="button" onClick={(e) => handleDelete(e, batch.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4"/></button>
                               </div>
                           </td>
                       </tr>
@@ -163,9 +179,10 @@ export const AdminBatches: React.FC = () => {
                       <button onClick={() => setShowModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
                   </div>
                   <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                      {/* Form fields same as before... */}
                       <div>
                           <label className="block text-sm font-medium text-slate-700 mb-1">Batch Name</label>
-                          <input required className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                          <input required className="w-full border rounded-lg px-3 py-2" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -180,7 +197,6 @@ export const AdminBatches: React.FC = () => {
                           </div>
                       </div>
                       
-                      {/* Banner Selection */}
                       <div className="space-y-3">
                         <label className="block text-sm font-medium text-slate-700">Banner Style</label>
                         <div className="flex bg-gray-100 p-1 rounded-lg w-fit">
@@ -248,8 +264,8 @@ export const AdminBatches: React.FC = () => {
                           <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
                           <textarea className="w-full border rounded-lg px-3 py-2" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
                       </div>
-                      <button type="submit" className="w-full bg-blue-600 text-white font-semibold py-2.5 rounded-lg hover:bg-blue-700">
-                          {isEditing ? 'Update Batch' : 'Create Batch'}
+                      <button disabled={submitting} type="submit" className="w-full bg-blue-600 text-white font-semibold py-2.5 rounded-lg hover:bg-blue-700 disabled:bg-blue-300">
+                          {submitting ? 'Saving...' : (isEditing ? 'Update Batch' : 'Create Batch')}
                       </button>
                   </form>
               </div>
