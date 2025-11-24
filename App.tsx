@@ -1,9 +1,12 @@
+
 import React from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Home } from './screens/Home';
 import { BatchDashboard } from './screens/BatchDashboard';
 import { SubjectDashboard } from './screens/SubjectDashboard';
+import { UserProfile } from './screens/UserProfile';
+import { UserSettings } from './screens/UserSettings';
 
 // Admin Imports
 import { AdminLayout } from './screens/AdminLayout';
@@ -23,6 +26,8 @@ const App: React.FC = () => {
           <Route index element={<Home />} />
           <Route path="batch/:batchId" element={<BatchDashboard />} />
           <Route path="batch/:batchId/subject/:subjectId" element={<SubjectDashboard />} />
+          <Route path="profile" element={<UserProfile />} />
+          <Route path="settings" element={<UserSettings />} />
         </Route>
 
         {/* Admin Routes */}

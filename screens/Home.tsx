@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchBatches, fetchSettings } from '../services/data';
 import { ClassLevel, Batch } from '../types';
-import { CheckCircle2, ArrowRight, Loader2, Lock } from 'lucide-react';
+import { ArrowRight, Loader2, Lock } from 'lucide-react';
 
 export const Home: React.FC = () => {
   const [selectedLevel, setSelectedLevel] = useState<ClassLevel>(ClassLevel.All);
@@ -36,20 +36,8 @@ export const Home: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in pt-4">
       
-      {/* Welcome Section */}
-      <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-200">
-          <CheckCircle2 className="w-3.5 h-3.5" />
-          Verified Account
-        </div>
-        <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Choose Your Learning Path</h2>
-        <p className="text-slate-500 max-w-xl mx-auto">
-          You have successfully verified your access. Please select your batch to continue learning with India's best educators.
-        </p>
-      </div>
-
       {/* Tabs */}
       <div className="flex justify-center">
         <div className="bg-white p-1 rounded-xl border border-gray-200 shadow-sm inline-flex">
@@ -104,27 +92,19 @@ const BatchCard: React.FC<{ batch: Batch; onSelect: () => void; enabled: boolean
 
   return (
     <div className="group bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col h-full">
-      <div className={`h-40 ${gradientClass} p-4 relative`} style={bannerStyle}>
-        <div className="absolute inset-0 bg-black/30 transition-opacity group-hover:bg-black/40"></div>
+      {/* Increased height here: h-56 on mobile, h-64 on medium screens. Removed dark overlay and teacher circles. */}
+      <div className={`h-56 md:h-64 ${gradientClass} p-4 relative transition-all duration-300`} style={bannerStyle}>
+        {/* Dark overlay removed to make image light */}
         <div className="relative z-10 h-full flex flex-col justify-between">
-            <span className="bg-white/20 backdrop-blur-md text-white text-xs font-bold px-2 py-1 rounded inline-block w-fit border border-white/10">
+            <span className="bg-white text-slate-900 shadow-sm text-xs font-bold px-2 py-1 rounded inline-block w-fit">
                 {batch.classLevel}
             </span>
-            <h3 className="text-white font-bold text-xl drop-shadow-md">{batch.name}</h3>
-        </div>
-        <div className="absolute -bottom-6 right-4 flex -space-x-3">
-          {batch.teachers.map((img, idx) => (
-            <img 
-              key={idx} 
-              src={img} 
-              alt="Teacher" 
-              className="w-12 h-12 rounded-full border-4 border-white object-cover shadow-sm bg-gray-100"
-            />
-          ))}
+            {/* Added stronger drop-shadow since background might be light */}
+            <h3 className="text-white font-bold text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] mb-2">{batch.name}</h3>
         </div>
       </div>
 
-      <div className="p-5 pt-8 flex-1 flex flex-col">
+      <div className="p-5 pt-4 flex-1 flex flex-col">
         <div className="flex-1">
           <p className="text-slate-500 text-sm mb-4 line-clamp-2">{batch.description}</p>
           <div className="flex items-baseline gap-2 mb-6">

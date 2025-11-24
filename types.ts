@@ -1,3 +1,4 @@
+
 import { LucideIcon } from 'lucide-react';
 
 export enum ClassLevel {
@@ -58,13 +59,21 @@ export interface Student {
   id: string;
   name: string;
   email: string;
-  batchId: string;
+  batchId?: string;
   joinDate: string;
   progress: number;
   status: 'Active' | 'Suspended';
+  // Profile fields
+  age?: number;
+  mobile?: string;
+  classLevel?: string;
 }
 
 export interface AppSettings {
   maintenanceMode: boolean;
   allowEnrollments: boolean;
+  youtubeUrl?: string;
+  telegramUrl?: string;
+  instagramUrl?: string;
+  supportEmail?: string;
 }

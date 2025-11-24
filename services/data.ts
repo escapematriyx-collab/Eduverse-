@@ -95,6 +95,16 @@ const seedData = async () => {
   }
 };
 
+// --- Local User Identity ---
+const getLocalUserId = () => {
+    let id = localStorage.getItem('eduverse_user_id');
+    if (!id) {
+        id = 'u-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        localStorage.setItem('eduverse_user_id', id);
+    }
+    return id;
+};
+
 // --- Fetch Actions ---
 
 export const fetchBatches = async (): Promise<Batch[]> => {
@@ -161,6 +171,41 @@ export const fetchSettings = async (): Promise<AppSettings> => {
     return snap.data() as AppSettings;
   }
   return { maintenanceMode: false, allowEnrollments: true };
+};
+
+// --- Profile Actions ---
+
+export const fetchUserProfile = async (): Promise<Student | null> => {
+    const id = getLocalUserId();
+    const ref = doc(db, 'students', id);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+        return snap.data() as Student;
+    }
+    return null;
+};
+
+export const saveUserProfile = async (data: Partial<Student>) => {
+    const id = getLocalUserId();
+    
+    // Fetch existing or create new
+    const existing = await fetchUserProfile();
+    
+    const studentData: Student = {
+        id: id,
+        name: data.name || (existing?.name || 'New User'),
+        email: data.email || (existing?.email || ''),
+        batchId: existing?.batchId || '',
+        joinDate: existing?.joinDate || new Date().toISOString().split('T')[0],
+        progress: existing?.progress || 0,
+        status: existing?.status || 'Active',
+        age: data.age || existing?.age,
+        mobile: data.mobile || existing?.mobile,
+        classLevel: data.classLevel || existing?.classLevel
+    };
+
+    await setDoc(doc(db, 'students', id), cleanData(studentData));
+    return studentData;
 };
 
 // --- CRUD Actions ---

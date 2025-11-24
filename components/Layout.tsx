@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Bell, Search, User, Key, X, AlertTriangle } from 'lucide-react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { ArrowLeft, Bell, Search, User, Key, X, AlertTriangle, Home, Settings } from 'lucide-react';
 import { fetchSettings } from '../services/data';
 
 interface LayoutProps {
@@ -115,8 +116,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     );
   }
 
+  const isActive = (path: string) => location.pathname === path;
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-slate-800 relative">
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-slate-800 relative pb-20 md:pb-0">
       {/* Sticky Header */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -156,9 +159,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Key className="w-5 h-5" />
             </button>
 
-            <button className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 border border-slate-300">
+            <Link to="/profile" className="hidden md:flex w-9 h-9 rounded-full bg-slate-200 items-center justify-center text-slate-600 border border-slate-300 hover:bg-blue-50 hover:text-blue-600 transition-colors">
               <User className="w-5 h-5" />
-            </button>
+            </Link>
           </div>
         </div>
       </header>
@@ -168,14 +171,36 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         {children}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-6 mt-auto">
-        <div className="max-w-6xl mx-auto px-4 text-center text-sm text-slate-500">
-          © 2024 EduVerse 2.0. All rights reserved.
-        </div>
-      </footer>
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-40 pb-safe">
+        <div className="flex justify-around items-center h-16">
+          <Link 
+            to="/" 
+            className={`flex flex-col items-center gap-1 w-full h-full justify-center ${isActive('/') ? 'text-blue-600' : 'text-slate-400'}`}
+          >
+            <Home className={`w-6 h-6 ${isActive('/') ? 'fill-current' : ''}`} />
+            <span className="text-[10px] font-medium">Home</span>
+          </Link>
+          
+          <Link 
+            to="/profile" 
+            className={`flex flex-col items-center gap-1 w-full h-full justify-center ${isActive('/profile') ? 'text-blue-600' : 'text-slate-400'}`}
+          >
+            <User className={`w-6 h-6 ${isActive('/profile') ? 'fill-current' : ''}`} />
+            <span className="text-[10px] font-medium">Profile</span>
+          </Link>
 
-      {/* Admin Access Modal (Always available in header too) */}
+          <Link 
+            to="/settings" 
+            className={`flex flex-col items-center gap-1 w-full h-full justify-center ${isActive('/settings') ? 'text-blue-600' : 'text-slate-400'}`}
+          >
+            <Settings className={`w-6 h-6 ${isActive('/settings') ? 'fill-current' : ''}`} />
+            <span className="text-[10px] font-medium">Settings</span>
+          </Link>
+        </div>
+      </nav>
+
+      {/* Admin Access Modal */}
       {showAdminModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
